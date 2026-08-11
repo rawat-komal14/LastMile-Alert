@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
@@ -12,7 +13,7 @@ app.use(cors());
 
 // 1. Connect to MongoDB
 
-const MONGO_URI = "mongodb+srv://Isha:isha123@cluster0.lgryfaj.mongodb.net/lastmile-alert?appName=Cluster0";
+const MONGO_URI = process.env.Mongo_URI;
 mongoose
   .connect(MONGO_URI)
   .then(() => console.log(" Successfully connected to MongoDB"))
