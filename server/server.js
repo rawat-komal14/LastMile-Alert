@@ -20,6 +20,7 @@ let alerts = [
   },
 ];
 
+
 console.log("Running server with in-memory storage (No MongoDB required!)");
 
 // Register Route
@@ -70,7 +71,7 @@ app.post("/api/alerts", (req, res) => {
     createdAt: new Date(),
   };
   
-  alerts.unshift(newAlert); // Add to beginning of array
+  alerts.unshift(newAlert); 
   res.status(201).json({ message: "Emergency alert broadcasted successfully", alert: newAlert });
 });
 
