@@ -1,77 +1,98 @@
 const express = require("express");
 const cors = require("cors");
+const mongoose = require("mongoose");
+
+// Import your existing models
+const User = require("./models/User");
+const Alert = require("./models/Alert");
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-// In-memory data storage (restarts when you restart the server)
-let users = [];
-let alerts = [
-  {
-    _id: "1",
-    title: "Flash Flood Warning - Sector 4",
-    severity: "red",
-    category: "Flood",
-    location: "River Basin & Lowlands",
-    shelter: "Community Hall (1.2 km)",
-    description: "Water levels rising rapidly near the main river basin. Residents in low-lying areas must evacuate immediately.",
-    createdAt: new Date(),
-  },
-];
+// 1. Connect to MongoDB
 
-console.log("Running server with in-memory storage (No MongoDB required!)");
+const MONGO_URI = "mongodb+srv://Isha:isha123@cluster0.lgryfaj.mongodb.net/lastmile-alert?appName=Cluster0";
+mongoose
+  .connect(MONGO_URI)
+  .then(() => console.log(" Successfully connected to MongoDB"))
+  .catch((err) => console.error(" MongoDB connection error:", err));
+
+// --- ROUTES ---
 
 // Register Route
-app.post("/api/auth/register", (req, res) => {
-  const { name, email, password, role } = req.body;
-  
-  // Check if user already exists
-  const existingUser = users.find((u) => u.email === email);
-  if (existingUser) {
-    return res.status(400).json({ error: "Email already registered" });
-  }
+app.post("/api/auth/register", async (req, res) => {
+  try {
+    const { name, email, password, role } = req.body;
+    
+    // Check if user already exists in the database
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ error: "Email already registered" });
+    }
 
-  const newUser = { id: Date.now().toString(), name, email, password, role: role || "citizen" };
-  users.push(newUser);
-  
-  res.status(201).json({ message: "User registered successfully", user: newUser });
+    // Create and save the new user
+    const newUser = new User({ name, email, password, role: role || "citizen" });
+    await newUser.save();
+    
+    res.status(201).json({ message: "User registered successfully", user: newUser });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Server error during registration" });
+  }
 });
 
 // Login Route
-app.post("/api/auth/login", (req, res) => {
-  const { email, password } = req.body;
-  const user = users.find((u) => u.email === email && u.password === password);
-  
-  if (!user) {
-    return res.status(401).json({ error: "Invalid email or password" });
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    // Find user matching both email and password
+    const user = await User.findOne({ email, password });
+    
+    if (!user) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+    
+    res.json({ message: "Login successful", user });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Server error during login" });
   }
-  
-  res.json({ message: "Login successful", user });
 });
 
 // Get All Alerts Route
-app.get("/api/alerts", (req, res) => {
-  res.json(alerts);
+app.get("/api/alerts", async (req, res) => {
+  try {
+    // Fetch all alerts and sort by newest first
+    const alerts = await Alert.find().sort({ createdAt: -1 });
+    res.json(alerts);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to fetch alerts" });
+  }
 });
 
 // Create Alert Route (Authority)
-app.post("/api/alerts", (req, res) => {
-  const { title, severity, category, location, shelter, description } = req.body;
-  
-  const newAlert = {
-    _id: Date.now().toString(),
-    title,
-    severity,
-    category,
-    location,
-    shelter,
-    description,
-    createdAt: new Date(),
-  };
-  
-  alerts.unshift(newAlert); // Add to beginning of array
-  res.status(201).json({ message: "Emergency alert broadcasted successfully", alert: newAlert });
+app.post("/api/alerts", async (req, res) => {
+  try {
+    const { title, severity, category, location, shelter, description } = req.body;
+    
+    const newAlert = new Alert({
+      title,
+      severity,
+      category,
+      location,
+      shelter,
+      description,
+    });
+    
+    await newAlert.save();
+    res.status(201).json({ message: "Emergency alert broadcasted successfully", alert: newAlert });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to create alert" });
+  }
 });
 
 const PORT = process.env.PORT || 5000;
